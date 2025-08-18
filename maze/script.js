@@ -41,8 +41,8 @@ const canvas = document.querySelector('#canvas');
 const ctx = canvas.getContext('2d');
 let timeout = false;
 
-const shape = new Shapes({canvas, context: ctx});
-let asIndex = 0, inter, mazeGraph, creatingMaze = false, scale = 100/100;
+const shape = new Shapes({ canvas, context: ctx });
+let asIndex = 0, inter, mazeGraph, creatingMaze = false, scale = 100 / 100;
 let animateStore = [], store = [];
 
 // A Cell in a maze
@@ -54,62 +54,62 @@ class Cells {
 
 		this.wallClr = '#302929';
 		this.cellClr = lc.value;
-		
-		this.walls = [1,1,1,1];
+
+		this.walls = [1, 1, 1, 1];
 		this.path = null;
 		this.interacted = false;
 	}
 	draw(clr) {
 		if (!this.path) {
-			this.path = shape.rect({x: this.pos.x, y: this.pos.y, size: this.l}).path;
+			this.path = shape.rect({ x: this.pos.x, y: this.pos.y, size: this.l }).path;
 		}
-		shape.fill({path: this.path, color: clr ?? this.cellClr});
+		shape.fill({ path: this.path, color: clr ?? this.cellClr });
 	}
 	drawSearch(clr) {
-		shape.rect({x: this.pos.x, y: this.pos.y, size: this.l});
-		shape.fill({color: clr});
+		shape.rect({ x: this.pos.x, y: this.pos.y, size: this.l });
+		shape.fill({ color: clr });
 	}
 	drawWalls() {
 		let lineCap = 'square';
-		let wallWidth = Math.floor(this.l/4);
+		let wallWidth = Math.floor(this.l / 4);
 		let paths = [];
-		if(this.walls[0]) {
-			paths.push(shape.line({x: this.pos.x, y: this.pos.y, x1: this.pos.x+this.l, y1: this.pos.y, cap: lineCap})); //top
+		if (this.walls[0]) {
+			paths.push(shape.line({ x: this.pos.x, y: this.pos.y, x1: this.pos.x + this.l, y1: this.pos.y, cap: lineCap })); //top
 		}
-		if(this.walls[1]) {
-			paths.push(shape.line({x: this.pos.x+this.l, y: this.pos.y, x1: this.pos.x+this.l, y1: this.pos.y+this.l, cap: lineCap})); //right
+		if (this.walls[1]) {
+			paths.push(shape.line({ x: this.pos.x + this.l, y: this.pos.y, x1: this.pos.x + this.l, y1: this.pos.y + this.l, cap: lineCap })); //right
 		}
-		if(this.walls[2]) {
-			paths.push(shape.line({x: this.pos.x+this.l, y: this.pos.y+this.l, x1: this.pos.x, y1: this.pos.y+this.l, cap: lineCap}));  //bottom
+		if (this.walls[2]) {
+			paths.push(shape.line({ x: this.pos.x + this.l, y: this.pos.y + this.l, x1: this.pos.x, y1: this.pos.y + this.l, cap: lineCap }));  //bottom
 		}
-		if(this.walls[3]) {
-			paths.push(shape.line({x: this.pos.x, y: this.pos.y+this.l, x1: this.pos.x, y1: this.pos.y, cap: lineCap}));  //left
+		if (this.walls[3]) {
+			paths.push(shape.line({ x: this.pos.x, y: this.pos.y + this.l, x1: this.pos.x, y1: this.pos.y, cap: lineCap }));  //left
 		}
 		paths.forEach(z => {
-			shape.stroke({path: z.path, color: this.wallClr, width: wallWidth});
+			shape.stroke({ path: z.path, color: this.wallClr, width: wallWidth });
 		});
 	}
 	removeWalls(chose) {
-		if(this.id-chose == 1) {
+		if (this.id - chose == 1) {
 			this.walls[3] = 0;
 			store[chose].walls[1] = 0;
-		}else if(this.id-chose == -1) {
+		} else if (this.id - chose == -1) {
 			this.walls[1] = 0;
 			store[chose].walls[3] = 0;
-		}else if(this.id-chose > 1) {
+		} else if (this.id - chose > 1) {
 			this.walls[0] = 0;
 			store[chose].walls[2] = 0;
-		}else if(this.id-chose < -1) {
+		} else if (this.id - chose < -1) {
 			this.walls[2] = 0;
 			store[chose].walls[0] = 0;
 		}
 	}
 	interactive(x, y) {
-		if (shape.inPath({path: this.path, x, y})) {
+		if (shape.inPath({ path: this.path, x, y })) {
 			if (!this.interacted) {
 				this.interacted = true;
 				this.drawSearch(c.value);
-			}else {
+			} else {
 				this.interacted = false;
 				this.draw();
 			}
@@ -123,14 +123,14 @@ class Cells {
 function make() {
 	creatingMaze = true;
 	let count = 0;
-	for(let i = 0; i < canvas.height; i += parseInt(cs.value)) {
-		for(let j = 0; j < canvas.width; j += parseInt(cs.value)) {
+	for (let i = 0; i < canvas.height; i += parseInt(cs.value)) {
+		for (let j = 0; j < canvas.width; j += parseInt(cs.value)) {
 			store.push(new Cells(count, j, i, parseInt(cs.value)));
 			count++;
 		}
 	}
 	store[0].walls[3] = 0;
-	store[store.length-1].walls[1] = 0;
+	store[store.length - 1].walls[1] = 0;
 }
 
 function generateMaze() {
@@ -138,7 +138,7 @@ function generateMaze() {
 	clearInterval(inter);
 
 	// reset the old stacks/arrays, and start new maze generation
-	asIndex=0;
+	asIndex = 0;
 	animateStore.length = 0;
 	store.length = 0;
 
@@ -153,20 +153,20 @@ function generateMaze() {
 	// scaling it to 90% of the container's dimension
 	// subtracting the remainder from the width and height, so that the there's no empty space left at the of the container
 	let contComputedStyle = getComputedStyle(document.querySelector('.canvas-cont'));
-	if(r.checked) {
-		let wh = Math.min(parseInt(contComputedStyle.width)*scale, parseInt(contComputedStyle.height)*scale);
-		if(wh % parseInt(cs.value)) {
+	if (r.checked) {
+		let wh = Math.min(parseInt(contComputedStyle.width) * scale, parseInt(contComputedStyle.height) * scale);
+		if (wh % parseInt(cs.value)) {
 			wh -= wh % parseInt(cs.value);
 		}
 		canvas.width = wh;
 		canvas.height = wh;
-	}else{
-		let w = parseInt(contComputedStyle.width)*scale;
-		let h = parseInt(contComputedStyle.height)*scale;
-		if(w % parseInt(cs.value)) {
+	} else {
+		let w = parseInt(contComputedStyle.width) * scale;
+		let h = parseInt(contComputedStyle.height) * scale;
+		if (w % parseInt(cs.value)) {
 			w -= w % parseInt(cs.value);
 		}
-		if(h % parseInt(cs.value)) {
+		if (h % parseInt(cs.value)) {
 			h -= h % parseInt(cs.value);
 		}
 		canvas.width = w;
@@ -179,40 +179,49 @@ function generateMaze() {
 	mazeGraph = mazeDS.mazeGraph;
 
 	// start creating a maze at a given interval
-	inter = setInterval(()=> {
-		animate(false)
-	}, parseInt(fr.value));
+	if (!fr.value || fr.value == 0) {
+		for (let i = 0; i < animateStore.length; i++) {
+			animate(false);
+		}
+		if (creatingMaze) { creatingMaze = false; }
+		animateStore.length = 0;
+		console.log('stop');
+	} else {
+		inter = setInterval(() => {
+			animate(false)
+		}, parseInt(fr.value));
+	}
 }
 
 function searchMaze() {
-	if(creatingMaze || !mazeGraph) return 0;
+	if (creatingMaze || !mazeGraph) return 0;
 	creatingMaze = true;
 
-	animateStore = search(mazeGraph, 0, mazeGraph.v-1).stackarray, asIndex=0;
-	inter = setInterval(()=> {
+	animateStore = search(mazeGraph, 0, mazeGraph.v - 1).stackarray, asIndex = 0;
+	inter = setInterval(() => {
 		animate(true)
 	}, parseInt(fr.value));
 }
 
 function drawAllWalls() {
-	store.forEach(z=>{
+	store.forEach(z => {
 		z.drawWalls();
 	});
 }
 // start generation or search animation
 function animate(search) {
 	//shape.clear(0,0,canvas.width,canvas.height);
-	if(animateStore[asIndex] != undefined && !search) {// make the maze (generate maze)
-		store[animateStore[asIndex]].removeWalls(animateStore[asIndex+1]);
+	if (animateStore[asIndex] != undefined && !search) {// make the maze (generate maze)
+		store[animateStore[asIndex]].removeWalls(animateStore[asIndex + 1]);
 		store[animateStore[asIndex]].draw();
-	}else if(animateStore[asIndex] != undefined && search) { // search the maze
+	} else if (animateStore[asIndex] != undefined && search) { // search the maze
 		store[animateStore[asIndex]].drawSearch("#0f0");
 		store[animateStore[asIndex]].interacted = true;
-	}else{ // when any of the above process is finished
-		if(creatingMaze) {creatingMaze = false;}
-		console.log('stop');
+	} else { // when any of the above process is finished
+		if (creatingMaze) { creatingMaze = false; }
 		animateStore.length = 0;
 		clearInterval(inter);
+		console.log('stop');
 	}
 	asIndex++;
 
@@ -223,7 +232,7 @@ function animate(search) {
 canvas.addEventListener('mousedown', e => {
 	if (!store.length) return 1;
 
-	for(let i = 0; i < store.length; i++) {
+	for (let i = 0; i < store.length; i++) {
 		let z = store[i];
 		z.interactive(e.offsetX, e.offsetY);
 	}
@@ -233,7 +242,7 @@ canvas.addEventListener('mousedown', e => {
 
 // dom related stuff.. button listeners, functions calls, etc.
 gen.addEventListener('click', () => {
-	canvas.style.border = "solid " + (parseInt(cs.value)/10)+"px " + "#302929";
+	canvas.style.border = "solid " + (parseInt(cs.value) / 10) + "px " + "#302929";
 	generateMaze();
 });
 sch.addEventListener('click', () => {
@@ -256,7 +265,7 @@ mop.addEventListener("click", (e) => {
 	!open ? display = "grid" : display = "none";
 	leftCont.style.display = display;
 
-	setTimeout(()=> {
+	setTimeout(() => {
 		open = true;
 	}, 100);
 });
@@ -265,14 +274,14 @@ mop.addEventListener("touchstart", (e) => {
 	!open ? display = "grid" : display = "none";
 	leftCont.style.display = display;
 
-	setTimeout(()=> {
+	setTimeout(() => {
 		open = true;
 	}, 100);
 });
 rightCont.addEventListener("click", (e) => {
-	if(open) {
+	if (open) {
 		leftCont.style.display = "none";
-		setTimeout(()=> {
+		setTimeout(() => {
 			open = false;
 		}, 100);
 	}
@@ -290,9 +299,9 @@ dwn.addEventListener('click', () => {
 shr.addEventListener('click', (e) => {
 	let filesArray;
 	canvas.toBlob(async blob => {
-		filesArray = [new File([blob], "maze.png", {type: "image/png"})];
-		
-		if (navigator.canShare({files: filesArray})) {
+		filesArray = [new File([blob], "maze.png", { type: "image/png" })];
+
+		if (navigator.canShare({ files: filesArray })) {
 			try {
 				await navigator.share({
 					files: filesArray,
