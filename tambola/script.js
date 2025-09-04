@@ -18,11 +18,19 @@ class DynamicTambolaTicketA4 {
         // A4 dimensions at 150 DPI
         this.pageWidth = 1240;
         this.pageHeight = 1754;
-        this.calculateDimensions();
-        this.setupCanvas();
+
         this.isDrawing = false;
         this.lastX = 0;
         this.lastY = 0;
+
+        const baselineRows = 6; // baseline that looked correct
+        this.maxTicketHeight = Math.floor(
+          (this.pageHeight - (2 * this.config.pageMargin) - ((baselineRows - 1) * this.config.ticketSpacing))
+          / baselineRows
+          );
+
+                this.calculateDimensions();
+        this.setupCanvas();
     }
 
     calculateDimensions() {
@@ -31,13 +39,15 @@ class DynamicTambolaTicketA4 {
 
         // Calculate available space
         const availableWidth = this.pageWidth - (2 * this.config.pageMargin) -
-            ((this.config.gridCols - 1) * this.config.ticketSpacing);
+        ((this.config.gridCols - 1) * this.config.ticketSpacing);
         const availableHeight = this.pageHeight - (2 * this.config.pageMargin) -
-            ((this.config.gridRows - 1) * this.config.ticketSpacing);
+        ((this.config.gridRows - 1) * this.config.ticketSpacing);
 
         // Calculate maximum ticket size
         this.ticketWidth = Math.floor(availableWidth / this.config.gridCols);
-        this.ticketHeight = Math.floor(availableHeight / this.config.gridRows);
+        const computedTicketHeight = Math.floor(availableHeight / this.config.gridRows);
+        this.ticketHeight = Math.min(computedTicketHeight, this.maxTicketHeight); // do not stretch
+
 
         // Calculate cell dimensions within each ticket
         const gridSpace = this.ticketHeight - this.config.headerHeight - this.config.footerHeight;
@@ -302,7 +312,7 @@ class DynamicTambolaTicketA4 {
                         ticketData[row][col].toString(),
                         cellX + this.cellWidth / 2,
                         cellY + this.cellHeight / 2
-                    );
+                        );
                 }
             }
         }
@@ -483,9 +493,9 @@ function updateTambolaLayout() {
 function updateConfigDisplay() {
     const ticketsPerPage = currentConfig.gridRows * currentConfig.gridCols;
     document.getElementById('configInfo').innerHTML = `
-Current Layout: ${currentConfig.gridRows}×${currentConfig.gridCols} grid (${ticketsPerPage} tickets per page)<br>
-Tambola Grid: ${currentConfig.tambolaRows}×${currentConfig.tambolaCols} with ${currentConfig.numbersPerRow} numbers per row
-`;
+    Current Layout: ${currentConfig.gridRows}×${currentConfig.gridCols} grid (${ticketsPerPage} tickets per page)<br>
+    Tambola Grid: ${currentConfig.tambolaRows}×${currentConfig.tambolaCols} with ${currentConfig.numbersPerRow} numbers per row
+    `;
 }
 
 // Generation Functions
