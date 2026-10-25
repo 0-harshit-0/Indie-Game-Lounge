@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Sudoku Generator and Solver | Play Accessible Sudoku Online</title>
+	<meta name="description" content="Generate, play, validate, and solve Sudoku puzzles online. Accessible, mobile-friendly grid with keyboard navigation, difficulty levels, and instant feedback." />
+	<meta name="robots" content="index,follow" />
+	<meta name="color-scheme" content="light dark" />
+	<meta name="theme-color" content="#f8fbff" />
+	<style>
+		:root {
+			color-scheme: light dark;
+			--app-bg: #f8fbff;
+			--surface: #ffffff;
+			--surface-2: #f3f7fd;
+			--text: #0d1321;
+			--text-muted: #334155;
+			--accent: #3a86ff;
+			--accent-2: #e5383b;
+			--ok: #2a9d8f;
+			--warn: #f4a261;
+			--error: #d62828;
+			--grid-line: #cfd8e3;
+			--focus: #023e8a;
+			--given: #888;
+			--input-bg: #ffffff;
+		}
+		:root[data-theme="dark"] {
+			--app-bg: #0f141b;
+			--surface: #121923;
+			--surface-2: #182232;
+			--text: #e3e8f2;        
+			--text-muted: #a6b0c1;   
+			--accent: #7cb5ff;       
+			--accent-2: #ff8ea6;
+			--ok: #4fd1c5;
+			--warn: #ffcc6e;
+			--error: #ff6b8b;
+			--grid-line: #2a364b;    
+			--focus: #7cc4ff;        
+			--given: #888;        
+			--input-bg: #0f141b;
+		}
+
+		html, body { height: 100%; background: var(--app-bg); color: var(--text); }
+		body {
+			margin: 0;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial;
+			line-height: 1.5;
+			-webkit-font-smoothing: antialiased;
+		}
+		a { color: var(--accent); }
+		button { font: inherit; }
+		input, select, button { color: var(--text); }
+
+		.app { display: grid; grid-template-rows: 1fr; min-height: 100dvh; }
+		.app__main { max-width: 72rem; margin: 0 auto; padding: 1rem; width: 100%; }
+
+		.sudoku { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+		.sudoku__layout { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+
+		@media (min-width: 960px) {
+			.sudoku__layout {
+				display: grid;
+				grid-template-columns: minmax(380px, 520px) 1fr;
+				grid-template-areas: "grid side" "grid controls";
+				align-items: start;
+				gap: 1rem;
+			}
+			.sudoku__grid-wrap { grid-area: grid; }
+			.help { grid-area: side; }
+			.controls { grid-area: controls; }
+		}
+
+		.sudoku__grid-wrap {
+			background: var(--surface);
+			border-radius: 0.5rem;
+			padding: 0.75rem;
+			border: 1px solid var(--grid-line);
+		}
+
+		.sudoku__grid {
+			width: 100%;
+			aspect-ratio: 1 / 1;
+			border-collapse: collapse;
+			background: var(--surface-2);
+			table-layout: fixed;
+			border: 2px solid var(--grid-line);
+			border-radius: 0.25rem;
+			overflow: hidden;
+		}
+
+		.sudoku__grid caption {
+			text-align: left; color: var(--text-muted); padding: 0.25rem 0.25rem 0.5rem 0.25rem; font-size: 0.95rem;
+		}
+
+		.sudoku__cell { 
+			background: var(--input-bg); 
+			border: 1px solid var(--grid-line); 
+			padding: 0; 
+			position: relative; 
+			aspect-ratio: 1 / 1; 
+		}
+
+		/* Dynamic borders based on selected size */
+		.sudoku__cell--right-edge { border-right-width: 2px; border-right-color: var(--text-muted); }
+		.sudoku__cell--bottom-edge { border-bottom-width: 2px; border-bottom-color: var(--text-muted); }
+
+		.sudoku__input {
+			outline: none;
+			background: var(--input-bg);
+			width: 100%; height: 100%; color: var(--text); border: none;
+			text-align: center; font-weight: 600; 
+			font-size: clamp(0.85rem, 4.2vw, 1.5rem); 
+			line-height: 1; padding: 0; caret-color: var(--accent);
+		}
+		.sudoku__input--given { color: var(--given); font-weight: 700; background: var(--input-bg); }
+		.sudoku__input--error { background: color-mix(in oklab, var(--error), transparent 85%); box-shadow: inset 0 0 0 2px var(--error); }
+
+		.controls { background: var(--surface); border: 1px solid var(--grid-line); border-radius: 0.5rem; padding: 1rem; }
+		.controls__legend { font-weight: 700; margin-bottom: 0.75rem; font-size: 1.05rem; }
+		.controls__group { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; align-items: center; margin-bottom: 0.75rem; }
+		.controls__label { color: var(--text-muted); font-size: 0.95rem; }
+		.controls__select { background: var(--surface-2); border: 1px solid var(--grid-line); border-radius: 0.375rem; padding: 0.5rem 0.75rem; }
+		.controls__buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+		.controls__button {
+			background: var(--surface-2); border: 1px solid var(--grid-line); border-radius: 0.375rem;
+			padding: 0.5rem 0.75rem; cursor: pointer; transition: background 120ms ease-in-out;
+		}
+		.controls__button:hover { background: color-mix(in oklab, var(--surface-2), var(--accent) 12%); }
+		.controls__button--primary { background: var(--accent); color: #001219; border-color: transparent; }
+		.controls__button--danger { background: color-mix(in oklab, var(--error), var(--surface-2) 60%); border-color: transparent; }
+		.controls__button--action { background: color-mix(in oklab, var(--ok), var(--surface-2) 20%); color: #001219; border-color: transparent; }
+
+		.status { margin-top: 0.5rem; font-size: 0.95rem; color: var(--text-muted); }
+		.app__sr-only { position: absolute !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; }
+
+		.help { background: var(--surface); border: 1px solid var(--grid-line); border-radius: 0.5rem; padding: 1rem; }
+		.help__title { margin-top: 0; }
+		.help__list { margin: 0.5rem 0 0; padding-left: 1rem; color: var(--text-muted); }
+	</style>
+</head>
+<body>
+
+	<main id="main_content" class="app__main">
+		<section class="sudoku" aria-labelledby="sudoku_heading">
+			<div class="sudoku__layout">
+				<article class="sudoku__grid-wrap">
+					<table id="sudoku_grid" class="sudoku__grid">
+						<caption id="grid_caption">Interactive Sudoku grid</caption>
+						<tbody id="sudoku_body"></tbody>
+					</table>
+					<p id="grid_instructions" class="status">
+						Use number keys to enter values; arrow keys move between cells; Backspace or 0 clears a cell. Given cells are read-only.
+					</p>
+				</article>
+
+				<aside class="help" id="help_section" aria-labelledby="help_title">
+					<h2 id="help_title" class="help__title">Keyboard help</h2>
+					<ul class="help__list">
+						<li>Arrow keys move focus between cells in the grid.</li>
+						<li>Press valid digits to enter a value, 0 or Backspace to clear.</li>
+						<li>Tab moves to controls; Enter activates focused buttons.</li>
+					</ul>
+				</aside>
+
+				<form id="controls_form" class="controls" aria-describedby="grid_instructions">
+					<fieldset class="controls__fieldset">
+						<legend class="controls__legend">Puzzle controls</legend>
+
+						<div class="controls__group">
+							<label for="size_select" class="controls__label">Grid Size</label>
+							<select id="size_select" class="controls__select" name="size">
+								<option value="2">2x2 (4x4 Grid)</option>
+								<option value="3" selected>3x3 (9x9 Grid)</option>
+								<option value="4">4x4 (16x16 Grid)</option>
+							</select>
+							
+							<label for="difficulty_select" class="controls__label">Difficulty</label>
+							<select id="difficulty_select" class="controls__select" name="difficulty">
+								<option value="easy">Easy</option>
+								<option value="medium" selected>Medium</option>
+								<option value="hard">Hard</option>
+							</select>
+						</div>
+
+						<div class="controls__buttons">
+							<button id="new_puzzle_button" type="button" class="controls__button controls__button--primary">New puzzle</button>
+							<button id="check_button" type="button" class="controls__button">Check</button>
+							<button id="solve_button" type="button" class="controls__button">Solve</button>
+							<button id="reset_button" type="button" class="controls__button controls__button--danger">Reset</button>
+							<button id="download_button" type="button" class="controls__button controls__button--action">Download</button>
+							<button id="theme_toggle_button" type="button" class="controls__button" aria-pressed="false" aria-label="Toggle dark theme">
+								Theme: Light
+							</button>
+						</div>
+
+						<div id="status_text" class="status" aria-live="polite" role="status" aria-atomic="true"></div>
+						<div id="status_live" class="app__sr-only" aria-live="polite" aria-atomic="true"></div>
+					</fieldset>
+				</form>
+			</div>
+		</section>
+	</main>
+
+	<!-- Templates -->
+	<template id="row_template"><tr class="sudoku__row"></tr></template>
+	<template id="cell_template">
+		<td class="sudoku__cell">
+			<input class="sudoku__input" type="text" autocomplete="off" autocorrect="off" aria-describedby="grid_instructions" />
+		</td>
+	</template>
+
+	<script defer>
+			'use strict';
+
+			/** Theme setup */
+			const THEME_KEY = 'theme';
+			const setTheme = (mode) => {
+				document.documentElement.toggleAttribute('data-theme', mode === 'dark');
+				if (mode === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+				if (mode === 'light') document.documentElement.removeAttribute('data-theme');
+				localStorage.setItem(THEME_KEY, mode);
+				const btn = document.getElementById('theme_toggle_button');
+				const isDark = mode === 'dark';
+				btn.setAttribute('aria-pressed', String(isDark));
+				btn.textContent = isDark ? 'Theme: Dark' : 'Theme: Light';
+			};
+
+			const initTheme = () => {
+				const stored = localStorage.getItem(THEME_KEY);
+				if (stored === 'light' || stored === 'dark') { setTheme(stored); return; }
+				const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+				setTheme(prefersDark ? 'dark' : 'light');
+			};
+
+			/** 
+			 * User's Core Sudoku Class Algorithm 
+			 */
+			class Sudoku {
+				constructor(size = 3) {
+					this.size = size;
+					this.max = size * size;
+					this.grid = null;
+					this.createGrid();
+				}
+
+				#inputGrid() {
+					return Array.from({ length: this.size }, () => new Array(this.size).fill(0));
+				}
+
+				createGrid() {
+					this.grid = Array.from({ length: this.size }, () => 
+						Array.from({ length: this.size }, () => this.#inputGrid())
+					);
+					return this.grid;
+				}
+
+				getCoords(r, c) {
+					return {
+						gridRow: Math.floor(r / this.size),
+						gridCol: Math.floor(c / this.size),
+						inputRow: r % this.size,
+						inputCol: c % this.size
+					};
+				}
+
+				getValue(r, c) {
+					const { gridRow, gridCol, inputRow, inputCol } = this.getCoords(r, c);
+					return this.grid[gridRow][gridCol][inputRow][inputCol];
+				}
+
+				inputByFlat(r, c, value) {
+					const { gridRow, gridCol, inputRow, inputCol } = this.getCoords(r, c);
+					this.input(gridRow, gridCol, inputRow, inputCol, value);
+				}
+
+				input(gridRow, gridCol, inputRow, inputCol, value) {
+					this.grid[gridRow][gridCol][inputRow][inputCol] = value;
+					return value;
+				}
+
+				verifyInputByFlat(r, c) {
+					const { gridRow, gridCol, inputRow, inputCol } = this.getCoords(r, c);
+					return this.verifyInput(gridRow, gridCol, inputRow, inputCol);
+				}
+
+				verifyInput(gridRow, gridCol, inputRow, inputCol) {
+					const max = this.size * this.size;
+					let valid = true;
+
+					if (this.grid[gridRow][gridCol][inputRow][inputCol] > max) valid = false;
+
+					// Row Validation
+					let rowData = [];
+					this.grid[gridRow].forEach(z => { rowData = [...rowData, ...z[inputRow]]; });
+					const filteredRow = rowData.filter(val => val !== 0);
+					if (filteredRow.length !== new Set(filteredRow).size) valid = false;
+
+					// Column Validation
+					let colData = [];
+					this.grid.forEach(z => { z[gridCol].forEach(y => { colData.push(y[inputCol]); }); });
+					const filteredCol = colData.filter(val => val !== 0);
+					if (filteredCol.length !== new Set(filteredCol).size) valid = false;
+					
+					// Subgrid/Block Validation
+					let blockData = this.grid[gridRow][gridCol].flat(2);
+					const filteredBlock = blockData.filter(val => val !== 0);
+					if (filteredBlock.length !== new Set(filteredBlock).size) valid = false;
+
+					return valid;
+				}
+				
+				clone() {
+					const newSudoku = new Sudoku(this.size);
+					for(let r=0; r<this.max; r++) {
+						for(let c=0; c<this.max; c++) {
+							newSudoku.inputByFlat(r, c, this.getValue(r, c));
+						}
+					}
+					return newSudoku;
+				}
+			}
+
+			/** Utility helpers */
+			const randInt = (n) => Math.floor(Math.random() * n);
+			const shuffled = (arr) => {
+				const a = arr.slice();
+				for (let i = a.length - 1; i > 0; i--) {
+					const j = randInt(i + 1);
+					[a[i], a[j]] = [a[j], a[i]];
+				}
+				return a;
+			};
+
+			/** Optimized Solver Checks (Prevents browser freeze during mass generation) */
+			const isSafeFast = (sudokuObj, r, c, val) => {
+				for (let i = 0; i < sudokuObj.max; i++) {
+					if (sudokuObj.getValue(r, i) === val) return false;
+					if (sudokuObj.getValue(i, c) === val) return false;
+				}
+				const { gridRow, gridCol } = sudokuObj.getCoords(r, c);
+				const block = sudokuObj.grid[gridRow][gridCol];
+				for (let ir = 0; ir < sudokuObj.size; ir++) {
+					for (let ic = 0; ic < sudokuObj.size; ic++) {
+						if (block[ir][ic] === val) return false;
+					}
+				}
+				return true;
+			};
+
+			const findEmpty = (sudokuObj) => {
+				for (let r = 0; r < sudokuObj.max; r++) {
+					for (let c = 0; c < sudokuObj.max; c++) {
+						if (sudokuObj.getValue(r, c) === 0) return [r, c];
+					}
+				}
+				return null;
+			};
+
+			const countSolutions = (sudokuObj, limit = 2) => {
+				let count = 0;
+				const dfs = () => {
+					const pos = findEmpty(sudokuObj);
+					if (!pos) { count++; return; }
+					const [r, c] = pos;
+					
+					for (let val = 1; val <= sudokuObj.max; val++) {
+						if (isSafeFast(sudokuObj, r, c, val)) {
+							sudokuObj.inputByFlat(r, c, val);
+							dfs();
+							sudokuObj.inputByFlat(r, c, 0); // Backtrack
+							if (count >= limit) return;
+						}
+					}
+				};
+				dfs();
+				return count;
+			};
+
+			const solveBacktrack = (sudokuObj) => {
+				const pos = findEmpty(sudokuObj);
+				if (!pos) return true;
+				const [r, c] = pos;
+				
+				const digits = Array.from({length: sudokuObj.max}, (_, i) => i + 1);
+				
+				for (const val of shuffled(digits)) {
+					if (isSafeFast(sudokuObj, r, c, val)) {
+						sudokuObj.inputByFlat(r, c, val);
+						if (solveBacktrack(sudokuObj)) return true;
+						sudokuObj.inputByFlat(r, c, 0);
+					}
+				}
+				return false;
+			};
+
+			const generateFullSolution = (size) => {
+				const sudoku = new Sudoku(size);
+				solveBacktrack(sudoku);
+				return sudoku;
+			};
+
+			const makePuzzle = (solutionObj, difficulty = 'medium') => {
+				const puzzle = solutionObj.clone();
+				const totalCells = puzzle.max * puzzle.max;
+				
+				let targetRemove = Math.floor(totalCells * 0.5); 
+				if (puzzle.max === 9) {
+					const diffMap = { easy: 30, medium: 60, hard: 70 };
+					targetRemove = diffMap[difficulty] || 46;
+				} else {
+					const scaleMap = { easy: 0.3, medium: 0.6, hard: 0.7 };
+					targetRemove = Math.floor(totalCells * (scaleMap[difficulty] || 0.45));
+				}
+
+				const cells = [];
+				for (let r = 0; r < puzzle.max; r++) {
+					for (let c = 0; c < puzzle.max; c++) cells.push([r, c]);
+				}
+
+				// Only enforce strict uniqueness for sizes <= 9 to prevent massive lag on 16x16 grids
+				const enforceUniqueness = puzzle.max <= 9;
+
+				for (const [r, c] of shuffled(cells)) {
+					if (targetRemove <= 0) break;
+					
+					const backup = puzzle.getValue(r, c);
+					if (backup === 0) continue;
+					
+					puzzle.inputByFlat(r, c, 0);
+					
+					if (enforceUniqueness) {
+						const puzzleCopy = puzzle.clone();
+						if (countSolutions(puzzleCopy, 2) !== 1) {
+							// If removing this cell breaks the unique solution, revert it
+							puzzle.inputByFlat(r, c, backup);
+						} else {
+							targetRemove--;
+						}
+					} else {
+						targetRemove--;
+					}
+				}
+				return puzzle;
+			};
+
+			/** DOM binding */
+			const els = {
+				grid: document.getElementById('sudoku_grid'),
+				body: document.getElementById('sudoku_body'),
+				caption: document.getElementById('grid_caption'),
+				tplRow: document.getElementById('row_template'),
+				tplCell: document.getElementById('cell_template'),
+				size: document.getElementById('size_select'),
+				difficulty: document.getElementById('difficulty_select'),
+				btnNew: document.getElementById('new_puzzle_button'),
+				btnCheck: document.getElementById('check_button'),
+				btnSolve: document.getElementById('solve_button'),
+				btnReset: document.getElementById('reset_button'),
+				btnDownload: document.getElementById('download_button'),
+				btnTheme: document.getElementById('theme_toggle_button'),
+				statusText: document.getElementById('status_text'),
+				statusLive: document.getElementById('status_live')
+			};
+
+			let currentSize = 3;
+			let solutionObj = null;
+			let puzzleObj = null;
+			let userObj = null;
+
+			const announce = (msg) => {
+				els.statusText.textContent = msg;
+				els.statusLive.textContent = msg;
+			};
+
+			const buildGrid = (size) => {
+				const max = size * size;
+				els.body.textContent = '';
+				els.caption.textContent = `${max} by ${max} interactive Sudoku grid`;
+
+				for (let r = 0; r < max; r++) {
+					const rowFrag = document.importNode(els.tplRow.content, true);
+					const rowEl = rowFrag.querySelector('.sudoku__row');
+
+					for (let c = 0; c < max; c++) {
+						const cellFrag = document.importNode(els.tplCell.content, true);
+						const td = cellFrag.querySelector('.sudoku__cell');
+						const input = cellFrag.querySelector('.sudoku__input');
+
+						input.dataset.row = String(r);
+						input.dataset.col = String(c);
+						input.setAttribute('aria-label', `Row ${r + 1}, Column ${c + 1}`);
+
+						if ((c + 1) % size === 0 && c !== max - 1) td.classList.add('sudoku__cell--right-edge');
+						if ((r + 1) % size === 0 && r !== max - 1) td.classList.add('sudoku__cell--bottom-edge');
+
+						rowEl.appendChild(td);
+					}
+					els.body.appendChild(rowFrag);
+				}
+			};
+
+			const renderPuzzle = () => {
+				const inputs = els.body.querySelectorAll('.sudoku__input');
+				inputs.forEach((input) => {
+					const r = Number(input.dataset.row);
+					const c = Number(input.dataset.col);
+					const val = puzzleObj.getValue(r, c);
+					const given = val !== 0;
+					
+					input.value = given ? String(val) : '';
+					input.classList.toggle('sudoku__input--given', given);
+					input.readOnly = given;
+					input.setAttribute('aria-readonly', String(given));
+					input.removeAttribute('aria-invalid');
+					input.classList.remove('sudoku__input--error');
+				});
+			};
+
+			const syncUserGrid = () => {
+				const inputs = els.body.querySelectorAll('.sudoku__input');
+				inputs.forEach((input) => {
+					const r = Number(input.dataset.row);
+					const c = Number(input.dataset.col);
+					const v = input.value.trim();
+					userObj.inputByFlat(r, c, v ? Number(v) : 0);
+				});
+			};
+
+			const validateEntries = () => {
+				const inputs = els.body.querySelectorAll('.sudoku__input');
+				let ok = true;
+				inputs.forEach((input) => {
+					input.removeAttribute('aria-invalid');
+					input.classList.remove('sudoku__input--error');
+					const r = Number(input.dataset.row);
+					const c = Number(input.dataset.col);
+					const v = input.value.trim();
+					if (!v) return;
+
+					const n = Number(v);
+					if (Number.isNaN(n) || n < 1 || n > userObj.max) {
+						ok = false;
+						input.setAttribute('aria-invalid', 'true');
+						input.classList.add('sudoku__input--error');
+						return;
+					}
+
+					if (!userObj.verifyInputByFlat(r, c)) {
+						ok = false;
+						input.setAttribute('aria-invalid', 'true');
+						input.classList.add('sudoku__input--error');
+					}
+				});
+				return ok;
+			};
+
+			const fillSolution = () => {
+				const inputs = els.body.querySelectorAll('.sudoku__input');
+				inputs.forEach((input) => {
+					const r = Number(input.dataset.row);
+					const c = Number(input.dataset.col);
+					input.value = String(solutionObj.getValue(r, c));
+					input.classList.remove('sudoku__input--error');
+					input.removeAttribute('aria-invalid');
+				});
+			};
+
+			/** Download Grid as SVG */
+			const downloadGrid = () => {
+				syncUserGrid();
+				const max = userObj.max;
+				const cellSize = 50;
+				const width = max * cellSize;
+				const height = max * cellSize;
+
+				let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+				svg += `<rect width="100%" height="100%" fill="white" />`;
+
+				// Draw Values
+				for (let r = 0; r < max; r++) {
+					for (let c = 0; c < max; c++) {
+						const val = userObj.getValue(r, c);
+						const given = puzzleObj.getValue(r, c) !== 0;
+						
+						const x = c * cellSize;
+						const y = r * cellSize;
+
+						if (val !== 0) {
+							// Given numbers are black and bold, user input is blue and normal weight
+							const fill = given ? "#0d1321" : "#3a86ff"; 
+							const fw = given ? "bold" : "normal";
+							
+							svg += `<text x="${x + cellSize/2}" y="${y + cellSize/2}" dy=".35em" font-family="sans-serif" font-size="${cellSize * 0.45}" font-weight="${fw}" fill="${fill}" text-anchor="middle">${val}</text>`;
+						}
+					}
+				}
+
+				// Draw Grid Lines
+				for (let i = 0; i <= max; i++) {
+					const isMajor = i % userObj.size === 0;
+					const strokeWidth = isMajor ? 3 : 1;
+					const stroke = isMajor ? "#334155" : "#cfd8e3";
+					
+					// Vertical line
+					const x = i * cellSize;
+					svg += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="${stroke}" stroke-width="${strokeWidth}" />`;
+					
+					// Horizontal line
+					const y = i * cellSize;
+					svg += `<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="${stroke}" stroke-width="${strokeWidth}" />`;
+				}
+
+				svg += `</svg>`;
+
+				// Create Downloadable Link
+				const blob = new Blob([svg], { type: 'image/svg+xml' });
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = `sudoku_${max}x${max}.svg`;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+				
+				announce('Sudoku grid downloaded.');
+			};
+
+
+			/** Events */
+			const onInput = (e) => {
+				const input = e.target;
+				if (!(input instanceof HTMLInputElement) || !input.classList.contains('sudoku__input')) return;
+
+				const max = currentSize * currentSize;
+				const v = input.value.replace(/\D+/g, '');
+				const n = Number(v);
+				
+				if(n > max || n === 0) input.value = ''; 
+				else input.value = v;
+				
+				syncUserGrid();
+			};
+
+			const onKeydown = (e) => {
+				const input = e.target;
+				if (!(input instanceof HTMLInputElement) || !input.classList.contains('sudoku__input')) return;
+
+				const r = Number(input.dataset.row);
+				const c = Number(input.dataset.col);
+				const max = currentSize * currentSize;
+
+				const moveFocus = (nr, nc) => {
+					const next = els.body.querySelector(`.sudoku__input[data-row="${nr}"][data-col="${nc}"]`);
+					if (next) next.focus();
+				};
+
+				switch (e.key) {
+					case 'ArrowUp': e.preventDefault(); moveFocus(Math.max(0, r - 1), c); break;
+					case 'ArrowDown': e.preventDefault(); moveFocus(Math.min(max - 1, r + 1), c); break;
+					case 'ArrowLeft': e.preventDefault(); moveFocus(r, Math.max(0, c - 1)); break;
+					case 'ArrowRight': e.preventDefault(); moveFocus(r, Math.min(max - 1, c + 1)); break;
+					case 'Backspace':
+					case 'Delete':
+					case '0':
+						e.preventDefault();
+						input.value = '';
+						syncUserGrid();
+						break;
+				}
+			};
+
+			const newPuzzle = () => {
+				announce('Generating puzzle… this may take a moment.');
+				
+				setTimeout(() => {
+					currentSize = Number(els.size.value);
+					const diff = els.difficulty.value;
+					
+					solutionObj = generateFullSolution(currentSize);
+					puzzleObj = makePuzzle(solutionObj, diff);
+					userObj = puzzleObj.clone();
+
+					buildGrid(currentSize);
+					renderPuzzle();
+
+					els.body.addEventListener('input', onInput);
+					els.body.addEventListener('keydown', onKeydown, true);
+
+					announce(`New ${currentSize*currentSize}x${currentSize*currentSize} ${diff} puzzle ready.`);
+				}, 50);
+			};
+
+			const checkPuzzle = () => {
+				syncUserGrid();
+				const valid = validateEntries();
+				if (!valid) {
+					announce('Conflicts found. Invalid entries are highlighted.');
+					return;
+				}
+				let complete = true;
+				for (let r = 0; r < userObj.max; r++) {
+					for (let c = 0; c < userObj.max; c++) {
+						if (userObj.getValue(r, c) === 0) complete = false;
+					}
+				}
+				if(!complete) {
+					announce('No conflicts detected so far. Keep going!');
+				} else {
+					announce('Congratulations! Puzzle solved correctly.');
+				}
+			};
+
+			// Bind controls
+			els.btnNew.addEventListener('click', newPuzzle);
+			els.btnCheck.addEventListener('click', checkPuzzle);
+			els.btnSolve.addEventListener('click', () => { fillSolution(); announce('Solution filled.'); });
+			els.btnReset.addEventListener('click', () => { renderPuzzle(); announce('Puzzle reset.'); });
+			els.btnDownload.addEventListener('click', downloadGrid);
+			
+			els.difficulty.addEventListener('change', newPuzzle);
+			els.size.addEventListener('change', newPuzzle);
+
+			els.btnTheme.addEventListener('click', () => {
+				const current = localStorage.getItem(THEME_KEY) || (document.documentElement.hasAttribute('data-theme') ? 'dark' : 'light');
+				const next = current === 'dark' ? 'light' : 'dark';
+				setTheme(next);
+				announce(next === 'dark' ? 'Dark theme enabled.' : 'Light theme enabled.');
+			});
+
+			// Init
+			initTheme();
+			newPuzzle();
+	</script>
+</body>
+</html>
